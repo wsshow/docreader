@@ -5,20 +5,24 @@
 ## 功能特性
 
 ### Office 文档
+
 - ✅ 读取 **DOCX** (Word 文档) 的文本内容和元数据
 - ✅ 读取 **XLSX** (Excel 表格) 的文本内容和结构化数据
 - ✅ 读取 **PPTX** (PowerPoint 演示文稿) 的文本内容
 
 ### PDF 文档
+
 - ✅ 读取 **PDF** 文件的文本内容和元数据
 
 ### 文本格式
+
 - ✅ 读取 **TXT** 纯文本文件
 - ✅ 读取 **CSV** 表格文件（支持结构化数据）
 - ✅ 读取 **Markdown** (.md) 文件
 - ✅ 读取 **RTF** 富文本格式（基础文本提取）
 
 ### 其他特性
+
 - ✅ 统一的接口设计，自动识别文件格式
 - ✅ 提取文档元数据（标题、作者、创建时间等）
 - ✅ 支持中文内容
@@ -26,7 +30,7 @@
 ## 安装
 
 ```bash
-go get github.com/yourusername/docreader
+go get github.com/wsshow/docreader
 ```
 
 ## 依赖项
@@ -46,7 +50,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/yourusername/docreader"
+    "github.com/wsshow/docreader"
 )
 
 func main() {
@@ -316,6 +320,7 @@ fmt.Println(doc.Content)
 当前 PDF 读取器使用 `ledongthuc/pdf` 库，该库对某些 PDF 文件中的中文字符（CJK 字体）支持有限。如果 PDF 文件使用了嵌入式中文字体或特殊编码，可能会出现乱码。
 
 **建议**：
+
 - 对于包含大量中文内容的 PDF，建议使用其他专业 PDF 处理工具
 - 英文和数字内容可以正常提取
 - 元数据提取不受影响
