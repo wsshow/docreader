@@ -33,13 +33,6 @@
 go get github.com/wsshow/docreader
 ```
 
-## 依赖项
-
-```bash
-go get github.com/ledongthuc/pdf
-go get github.com/xuri/excelize/v2
-```
-
 ## 快速开始
 
 ### 基本用法 - 自动识别文件类型
@@ -404,7 +397,7 @@ if err != nil {
     // 错误信息包含操作名称和文件路径
     // 格式: "操作名称: 文件路径: 错误详情"
     log.Printf("详细错误: %v", err)
-    
+
     // 使用 errors.Unwrap 获取原始错误
     if unwrapped := errors.Unwrap(err); unwrapped != nil {
         log.Printf("原始错误: %v", unwrapped)
@@ -421,18 +414,18 @@ package main
 import (
     "errors"
     "log"
-    "github.com/yourusername/docreader"
+    "github.com/wsshow/docreader"
 )
 
 func main() {
     filePath := "document.pdf"
-    
+
     doc, err := docreader.ReadDocument(filePath)
     if err != nil {
         handleError(err)
         return
     }
-    
+
     log.Printf("成功读取文档，内容长度: %d", len(doc.Content))
 }
 
