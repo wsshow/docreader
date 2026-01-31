@@ -14,7 +14,7 @@ func (r *PdfReader) ReadText(filePath string) (string, error) {
 	// 打开 PDF 文件
 	f, reader, err := pdf.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open PDF file: %w", err)
+		return "", WrapError("PdfReader.ReadText", filePath, ErrFileOpen)
 	}
 	defer f.Close()
 
@@ -47,7 +47,7 @@ func (r *PdfReader) ReadText(filePath string) (string, error) {
 func (r *PdfReader) GetMetadata(filePath string) (map[string]string, error) {
 	f, reader, err := pdf.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open PDF file: %w", err)
+		return nil, WrapError("PdfReader.GetMetadata", filePath, ErrFileOpen)
 	}
 	defer f.Close()
 

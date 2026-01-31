@@ -15,7 +15,7 @@ func (r *CsvReader) ReadText(filePath string) (string, error) {
 	// 打开文件
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open csv file: %w", err)
+		return "", WrapError("CsvReader.ReadText", filePath, ErrFileOpen)
 	}
 	defer file.Close()
 
@@ -25,7 +25,7 @@ func (r *CsvReader) ReadText(filePath string) (string, error) {
 	// 读取所有记录
 	records, err := reader.ReadAll()
 	if err != nil {
-		return "", fmt.Errorf("failed to read csv content: %w", err)
+		return "", WrapError("CsvReader.ReadText", filePath, ErrFileRead)
 	}
 
 	var builder strings.Builder
@@ -47,7 +47,7 @@ func (r *CsvReader) GetMetadata(filePath string) (map[string]string, error) {
 	// 打开文件
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open csv file: %w", err)
+		return nil, WrapError("CsvReader.GetMetadata", filePath, ErrFileOpen)
 	}
 	defer file.Close()
 
@@ -57,7 +57,7 @@ func (r *CsvReader) GetMetadata(filePath string) (map[string]string, error) {
 	// 读取所有记录
 	records, err := reader.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read csv content: %w", err)
+		return nil, WrapError("CsvReader.GetMetadata", filePath, ErrFileRead)
 	}
 
 	metadata["rows"] = fmt.Sprintf("%d", len(records))
@@ -79,14 +79,14 @@ func (r *CsvReader) GetMetadata(filePath string) (map[string]string, error) {
 func (r *CsvReader) GetRecords(filePath string) ([][]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open csv file: %w", err)
+		return nil, WrapError("CsvReader.GetRecords", filePath, ErrFileOpen)
 	}
 	defer file.Close()
 
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read csv content: %w", err)
+		return nil, WrapError("CsvReader.GetRecords", filePath, ErrFileRead)
 	}
 
 	return records, nil

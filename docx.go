@@ -3,7 +3,6 @@ package docreader
 import (
 	"archive/zip"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"strings"
 )
@@ -50,7 +49,7 @@ func (r *DocxReader) ReadText(filePath string) (string, error) {
 	// 打开 zip 文件
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open docx file: %w", err)
+		return "", WrapError("DocxReader.ReadText", filePath, ErrFileOpen)
 	}
 	defer zipReader.Close()
 
@@ -60,25 +59,25 @@ func (r *DocxReader) ReadText(filePath string) (string, error) {
 		if file.Name == "word/document.xml" {
 			rc, err := file.Open()
 			if err != nil {
-				return "", fmt.Errorf("failed to open document.xml: %w", err)
+				return "", WrapError("DocxReader.ReadText", filePath, ErrFileRead)
 			}
 			documentXML, err = io.ReadAll(rc)
 			rc.Close()
 			if err != nil {
-				return "", fmt.Errorf("failed to read document.xml: %w", err)
+				return "", WrapError("DocxReader.ReadText", filePath, ErrFileRead)
 			}
 			break
 		}
 	}
 
 	if documentXML == nil {
-		return "", fmt.Errorf("document.xml not found")
+		return "", WrapError("DocxReader.ReadText", filePath, ErrInvalidFormat)
 	}
 
 	// 解析 XML
 	var doc WordDocument
 	if err := xml.Unmarshal(documentXML, &doc); err != nil {
-		return "", fmt.Errorf("failed to parse XML: %w", err)
+		return "", WrapError("DocxReader.ReadText", filePath, ErrFileParse)
 	}
 
 	// 提取文本
@@ -115,7 +114,7 @@ func (r *DocxReader) ReadText(filePath string) (string, error) {
 func (r *DocxReader) GetMetadata(filePath string) (map[string]string, error) {
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open docx file: %w", err)
+		return nil, WrapError("DocxReader.GetMetadata", filePath, ErrFileOpen)
 	}
 	defer zipReader.Close()
 

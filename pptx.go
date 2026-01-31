@@ -46,7 +46,7 @@ func (r *PptxReader) ReadText(filePath string) (string, error) {
 	// 打开 zip 文件
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open pptx file: %w", err)
+		return "", WrapError("PptxReader.ReadText", filePath, ErrFileOpen)
 	}
 	defer zipReader.Close()
 
@@ -92,7 +92,7 @@ func (r *PptxReader) ReadText(filePath string) (string, error) {
 	}
 
 	if slideNum == 1 {
-		return "", fmt.Errorf("no slide content found")
+		return "", WrapError("PptxReader.ReadText", filePath, ErrEmptyFile)
 	}
 
 	return builder.String(), nil
@@ -102,7 +102,7 @@ func (r *PptxReader) ReadText(filePath string) (string, error) {
 func (r *PptxReader) GetMetadata(filePath string) (map[string]string, error) {
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open pptx file: %w", err)
+		return nil, WrapError("PptxReader.GetMetadata", filePath, ErrFileOpen)
 	}
 	defer zipReader.Close()
 
@@ -151,7 +151,7 @@ func (r *PptxReader) GetMetadata(filePath string) (map[string]string, error) {
 func (r *PptxReader) GetSlides(filePath string) ([]string, error) {
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open pptx file: %w", err)
+		return nil, WrapError("PptxReader.GetSlides", filePath, ErrFileOpen)
 	}
 	defer zipReader.Close()
 

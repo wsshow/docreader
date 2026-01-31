@@ -1,7 +1,7 @@
 package docreader
 
 import (
-	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -24,6 +24,11 @@ type Document struct {
 
 // ReadDocument 根据文件扩展名自动选择合适的读取器
 func ReadDocument(filePath string) (*Document, error) {
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, WrapError("ReadDocument", filePath, ErrFileNotFound)
+	}
+
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	var reader DocumentReader
@@ -46,12 +51,12 @@ func ReadDocument(filePath string) (*Document, error) {
 	case ".rtf":
 		reader = &RtfReader{}
 	default:
-		return nil, fmt.Errorf("unsupported file format: %s", ext)
+		return nil, WrapError("ReadDocument", filePath, ErrUnsupportedFormat)
 	}
 
 	content, err := reader.ReadText(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, err
 	}
 
 	metadata, err := reader.GetMetadata(filePath)

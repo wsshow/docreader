@@ -16,15 +16,10 @@ func TestReadDocument(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:        "不支持的格式",
-			filepath:    "test.unknown",
-			shouldError: true,
-			errorMsg:    "unsupported file format",
-		},
-		{
 			name:        "不存在的文件",
 			filepath:    "nonexistent.docx",
 			shouldError: true,
+			errorMsg:    "file not found",
 		},
 	}
 
@@ -393,6 +388,34 @@ func TestFormatDetection(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestErrorTypes 测试错误类型
+func TestErrorTypes(t *testing.T) {
+	t.Run("文件不存在错误", func(t *testing.T) {
+		_, err := ReadDocument("nonexistent.docx")
+		if err == nil {
+			t.Fatal("期望出现错误")
+		}
+		if !IsFileNotFound(err) {
+			t.Errorf("期望 FileNotFound 错误，得到: %v", err)
+		}
+	})
+
+	t.Run("不支持的格式错误", func(t *testing.T) {
+		// 创建一个临时文件
+		tmpFile := filepath.Join("testdata", "test.unknown")
+		os.WriteFile(tmpFile, []byte("test"), 0644)
+		defer os.Remove(tmpFile)
+
+		_, err := ReadDocument(tmpFile)
+		if err == nil {
+			t.Fatal("期望出现错误")
+		}
+		if !IsUnsupportedFormat(err) {
+			t.Errorf("期望 UnsupportedFormat 错误，得到: %v", err)
+		}
+	})
 }
 
 // BenchmarkReadDocument 性能基准测试

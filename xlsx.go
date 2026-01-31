@@ -15,7 +15,7 @@ func (r *XlsxReader) ReadText(filePath string) (string, error) {
 	// 打开 Excel 文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open xlsx file: %w", err)
+		return "", WrapError("XlsxReader.ReadText", filePath, ErrFileOpen)
 	}
 	defer f.Close()
 
@@ -61,7 +61,7 @@ func (r *XlsxReader) ReadText(filePath string) (string, error) {
 func (r *XlsxReader) GetMetadata(filePath string) (map[string]string, error) {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open xlsx file: %w", err)
+		return nil, WrapError("XlsxReader.GetMetadata", filePath, ErrFileOpen)
 	}
 	defer f.Close()
 
@@ -98,13 +98,13 @@ func (r *XlsxReader) GetMetadata(filePath string) (map[string]string, error) {
 func (r *XlsxReader) GetSheetData(filePath, sheetName string) ([][]string, error) {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open xlsx file: %w", err)
+		return nil, WrapError("XlsxReader.GetSheetData", filePath, ErrFileOpen)
 	}
 	defer f.Close()
 
 	rows, err := f.GetRows(sheetName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read sheet: %w", err)
+		return nil, WrapError("XlsxReader.GetSheetData", filePath, ErrSheetNotFound)
 	}
 
 	return rows, nil
@@ -114,7 +114,7 @@ func (r *XlsxReader) GetSheetData(filePath, sheetName string) ([][]string, error
 func (r *XlsxReader) GetAllSheetsData(filePath string) (map[string][][]string, error) {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open xlsx file: %w", err)
+		return nil, WrapError("XlsxReader.GetAllSheetsData", filePath, ErrFileOpen)
 	}
 	defer f.Close()
 

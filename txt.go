@@ -13,7 +13,7 @@ func (r *TxtReader) ReadText(filePath string) (string, error) {
 	// 读取文件内容
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read txt file: %w", err)
+		return "", WrapError("TxtReader.ReadText", filePath, ErrFileRead)
 	}
 
 	return string(data), nil
@@ -26,7 +26,7 @@ func (r *TxtReader) GetMetadata(filePath string) (map[string]string, error) {
 	// 获取文件信息
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
+		return nil, WrapError("TxtReader.GetMetadata", filePath, ErrFileNotFound)
 	}
 
 	metadata["size"] = fmt.Sprintf("%d", fileInfo.Size())

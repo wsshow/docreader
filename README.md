@@ -327,19 +327,129 @@ fmt.Println(doc.Content)
 
 ## 错误处理
 
-所有读取操作都返回 error，建议进行适当的错误处理：
+库提供了统一的错误封装和类型检查功能，方便进行精确的错误处理。
+
+### 预定义错误类型
+
+```go
+var (
+    ErrUnsupportedFormat = errors.New("unsupported file format")  // 不支持的文件格式
+    ErrFileNotFound      = errors.New("file not found")           // 文件不存在
+    ErrFileOpen          = errors.New("failed to open file")      // 无法打开文件
+    ErrFileRead          = errors.New("failed to read file")      // 读取文件失败
+    ErrFileParse         = errors.New("failed to parse file")     // 解析文件失败
+    ErrInvalidFormat     = errors.New("invalid file format")      // 文件格式无效
+    ErrEmptyFile         = errors.New("file is empty")            // 文件为空
+    ErrSheetNotFound     = errors.New("sheet not found")          // 工作表不存在
+)
+```
+
+### 基本错误处理
 
 ```go
 doc, err := docreader.ReadDocument("file.docx")
 if err != nil {
-    switch {
-    case strings.Contains(err.Error(), "不支持的文件格式"):
-        log.Println("文件格式不支持")
-    case strings.Contains(err.Error(), "无法打开"):
-        log.Println("文件不存在或无法访问")
-    default:
-        log.Printf("读取失败: %v", err)
+    log.Printf("读取文件失败: %v", err)
+    return
+}
+```
+
+### 使用错误类型检查
+
+```go
+doc, err := docreader.ReadDocument("file.unknown")
+if err != nil {
+    // 使用 errors.Is 进行错误类型判断
+    if errors.Is(err, docreader.ErrUnsupportedFormat) {
+        log.Println("不支持的文件格式")
+    } else if errors.Is(err, docreader.ErrFileNotFound) {
+        log.Println("文件不存在")
+    } else if errors.Is(err, docreader.ErrFileOpen) {
+        log.Println("无法打开文件")
+    } else {
+        log.Printf("其他错误: %v", err)
     }
     return
+}
+```
+
+### 使用辅助函数
+
+```go
+doc, err := docreader.ReadDocument("file.pdf")
+if err != nil {
+    // 使用辅助函数进行错误检查
+    if docreader.IsUnsupportedFormat(err) {
+        log.Println("不支持的文件格式")
+    } else if docreader.IsFileNotFound(err) {
+        log.Println("文件不存在")
+    } else if docreader.IsFileOpen(err) {
+        log.Println("无法打开文件")
+    } else if docreader.IsFileRead(err) {
+        log.Println("读取文件失败")
+    } else if docreader.IsFileParse(err) {
+        log.Println("解析文件失败")
+    } else {
+        log.Printf("未知错误: %v", err)
+    }
+    return
+}
+```
+
+### 获取详细错误信息
+
+```go
+doc, err := docreader.ReadDocument("file.docx")
+if err != nil {
+    // 错误信息包含操作名称和文件路径
+    // 格式: "操作名称: 文件路径: 错误详情"
+    log.Printf("详细错误: %v", err)
+    
+    // 使用 errors.Unwrap 获取原始错误
+    if unwrapped := errors.Unwrap(err); unwrapped != nil {
+        log.Printf("原始错误: %v", unwrapped)
+    }
+    return
+}
+```
+
+### 完整示例
+
+```go
+package main
+
+import (
+    "errors"
+    "log"
+    "github.com/yourusername/docreader"
+)
+
+func main() {
+    filePath := "document.pdf"
+    
+    doc, err := docreader.ReadDocument(filePath)
+    if err != nil {
+        handleError(err)
+        return
+    }
+    
+    log.Printf("成功读取文档，内容长度: %d", len(doc.Content))
+}
+
+func handleError(err error) {
+    switch {
+    case docreader.IsUnsupportedFormat(err):
+        log.Println("错误: 不支持的文件格式，请使用 .docx, .pdf, .xlsx, .pptx, .txt, .csv, .md 或 .rtf 格式")
+    case docreader.IsFileNotFound(err):
+        log.Println("错误: 文件不存在，请检查文件路径")
+    case docreader.IsFileOpen(err):
+        log.Println("错误: 无法打开文件，请检查文件权限")
+    case docreader.IsFileRead(err):
+        log.Println("错误: 读取文件失败，文件可能已损坏")
+    case docreader.IsFileParse(err):
+        log.Println("错误: 解析文件失败，文件格式可能不正确")
+    default:
+        log.Printf("错误: %v", err)
+    }
 }
 ```
