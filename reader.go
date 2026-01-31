@@ -3,8 +3,12 @@ package docreader
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
+
+// 支持的文档格式列表
+var supportedFormats = []string{".docx", ".pdf", ".xlsx", ".pptx", ".txt", ".csv", ".md", ".markdown", ".rtf"}
 
 // DocumentReader 定义了文档读取器的通用接口
 type DocumentReader interface {
@@ -20,6 +24,22 @@ type Document struct {
 	FilePath string
 	Content  string
 	Metadata map[string]string
+}
+
+// GetSupportedFormats 返回当前支持的文档格式列表
+func GetSupportedFormats() []string {
+	formats := make([]string, len(supportedFormats))
+	copy(formats, supportedFormats)
+	return formats
+}
+
+// IsFormatSupported 检查指定的文件格式是否被支持
+func IsFormatSupported(ext string) bool {
+	ext = strings.ToLower(ext)
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+	return slices.Contains(supportedFormats, ext)
 }
 
 // ReadDocument 根据文件扩展名自动选择合适的读取器
