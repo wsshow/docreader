@@ -2,6 +2,7 @@ package docreader
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ledongthuc/pdf"
 )
@@ -21,7 +22,7 @@ func (r *PdfReader) ReadText(filePath string) (string, error) {
 	// 获取总页数
 	totalPages := reader.NumPage()
 
-	var content string
+	var content strings.Builder
 
 	// 逐页读取文本
 	for pageNum := 1; pageNum <= totalPages; pageNum++ {
@@ -36,11 +37,11 @@ func (r *PdfReader) ReadText(filePath string) (string, error) {
 			continue
 		}
 
-		content += text
-		content += "\n\n--- 第 " + fmt.Sprintf("%d", pageNum) + " 页 ---\n\n"
+		content.WriteString(text)
+		content.WriteString("\n\n--- 第 " + fmt.Sprintf("%d", pageNum) + " 页 ---\n\n")
 	}
 
-	return content, nil
+	return content.String(), nil
 }
 
 // GetMetadata 获取 PDF 文件的元数据
