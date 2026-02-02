@@ -1,4 +1,4 @@
-module github/wsshow/docreader
+module github.com/wsshow/docreader
 
 go 1.25.1
 
