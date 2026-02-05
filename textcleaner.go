@@ -8,26 +8,30 @@ import (
 
 // TextCleaner 提供文本清理功能，用于优化大模型理解
 type TextCleaner struct {
-	// 是否移除多余空行（连续的空行压缩为一个）
-	RemoveExtraBlankLines bool
-	// 是否移除行首行尾空格
+	// TrimSpaces 是否移除行首行尾空格
 	TrimSpaces bool
-	// 是否移除多余空格（连续空格压缩为一个）
+
+	// RemoveExtraSpaces 是否移除多余空格（连续空格压缩为一个）
 	RemoveExtraSpaces bool
-	// 是否移除特殊控制字符
+
+	// RemoveControlChars 是否移除特殊控制字符
 	RemoveControlChars bool
-	// 最大连续空行数（0表示不限制）
-	MaxConsecutiveBlankLines int
+
+	// MaxBlankLines 最大连续空行数
+	// -1: 不限制空行数（保留所有空行）
+	//  0: 移除所有空行
+	//  1: 最多保留1个连续空行（压缩多余空行）
+	//  N: 最多保留N个连续空行
+	MaxBlankLines int
 }
 
 // DefaultTextCleaner 返回默认配置的文本清理器
 func DefaultTextCleaner() *TextCleaner {
 	return &TextCleaner{
-		RemoveExtraBlankLines:    true,
-		TrimSpaces:               true,
-		RemoveExtraSpaces:        true,
-		RemoveControlChars:       true,
-		MaxConsecutiveBlankLines: 1,
+		TrimSpaces:         true,
+		RemoveExtraSpaces:  true,
+		RemoveControlChars: true,
+		MaxBlankLines:      1, // 最多保留1个连续空行
 	}
 }
 
@@ -65,25 +69,25 @@ func (tc *TextCleaner) Clean(text string) string {
 		if line == "" {
 			consecutiveBlankLines++
 
-			// 如果 MaxConsecutiveBlankLines 为 0，移除所有空行
-			if tc.MaxConsecutiveBlankLines == 0 {
+			// MaxBlankLines = -1: 不限制，保留所有空行
+			if tc.MaxBlankLines == -1 {
+				cleanedLines = append(cleanedLines, line)
 				continue
 			}
 
-			// 如果设置了最大连续空行数（大于0）
-			if tc.MaxConsecutiveBlankLines > 0 && consecutiveBlankLines > tc.MaxConsecutiveBlankLines {
-				continue // 跳过多余的空行
+			// MaxBlankLines = 0: 移除所有空行
+			if tc.MaxBlankLines == 0 {
+				continue
 			}
 
-			// 如果要移除多余空行（且 MaxConsecutiveBlankLines < 0 表示不限制）
-			if tc.RemoveExtraBlankLines && consecutiveBlankLines > 1 && tc.MaxConsecutiveBlankLines != -1 {
-				continue // 跳过多余的空行
+			// MaxBlankLines > 0: 只保留指定数量的连续空行
+			if consecutiveBlankLines <= tc.MaxBlankLines {
+				cleanedLines = append(cleanedLines, line)
 			}
 		} else {
 			consecutiveBlankLines = 0
+			cleanedLines = append(cleanedLines, line)
 		}
-
-		cleanedLines = append(cleanedLines, line)
 	}
 
 	// 4. 移除开头和结尾的空行
@@ -152,26 +156,24 @@ func CleanText(text string) string {
 	return cleaner.Clean(text)
 }
 
-// CleanTextMinimal 使用最小清理配置（仅清理基本的空白）
+// CleanTextMinimal 使用最小清理配置（仅清理基本的空白，保留所有空行）
 func CleanTextMinimal(text string) string {
 	cleaner := &TextCleaner{
-		RemoveExtraBlankLines:    false,
-		TrimSpaces:               true,
-		RemoveExtraSpaces:        true,
-		RemoveControlChars:       true,
-		MaxConsecutiveBlankLines: -1, // 不限制空行数
+		TrimSpaces:         true,
+		RemoveExtraSpaces:  true,
+		RemoveControlChars: true,
+		MaxBlankLines:      -1, // 不限制空行数，保留所有空行
 	}
 	return cleaner.Clean(text)
 }
 
-// CleanTextAggressive 使用激进的清理配置（最大程度压缩空间）
+// CleanTextAggressive 使用激进的清理配置（最大程度压缩空间，移除所有空行）
 func CleanTextAggressive(text string) string {
 	cleaner := &TextCleaner{
-		RemoveExtraBlankLines:    true,
-		TrimSpaces:               true,
-		RemoveExtraSpaces:        true,
-		RemoveControlChars:       true,
-		MaxConsecutiveBlankLines: 0, // 不允许空行
+		TrimSpaces:         true,
+		RemoveExtraSpaces:  true,
+		RemoveControlChars: true,
+		MaxBlankLines:      0, // 移除所有空行
 	}
 	return cleaner.Clean(text)
 }

@@ -214,6 +214,149 @@ if err != nil {
 fmt.Println(doc.Content)
 ```
 
+## 高级配置
+
+### 精确控制读取内容
+
+DocReader 提供了强大的配置系统，允许你精确控制要读取的页面和行。
+
+#### 基本配置示例
+
+```go
+// 示例 1: 读取指定页码
+config := docreader.NewReadConfig().
+    WithPages(0, 2, 4) // 读取第 0、2、4 页
+
+result, err := docreader.ReadDocumentWithConfig("document.pdf", config)
+
+// 示例 2: 读取页码范围
+config := docreader.NewReadConfig().
+    WithPageRange(0, 5) // 读取第 0-5 页
+
+// 示例 3: 读取指定行
+config := docreader.NewReadConfig().
+    WithLines(0, 5, 10) // 每页只读取第 0、5、10 行
+
+// 示例 4: 读取行范围
+config := docreader.NewReadConfig().
+    WithLineRange(5, 15) // 每页只读取第 5-15 行
+
+// 示例 5: 组合多个范围
+config := docreader.NewReadConfig().
+    WithPageRange(0, 2).
+    WithPageRange(5, 7).  // 读取第 0-2 页和第 5-7 页
+    WithLineRange(0, 10)  // 每页读取第 0-10 行
+```
+
+#### 为不同页面设置不同的行配置
+
+```go
+// 为特定页面配置不同的行
+config := docreader.NewReadConfig().
+    AddPageLines(0, 1, 3, 5).           // 第 0 页：读取第 1、3、5 行
+    AddPageLineRange(1, 0, 10).         // 第 1 页：读取第 0-10 行
+    AddPageConfig(2, []int{2, 4}, [][2]int{{6, 8}}) // 第 2 页：读取第 2、4 行和第 6-8 行
+
+result, err := docreader.ReadDocumentWithConfig("document.pdf", config)
+```
+
+#### XLSX 工作表筛选
+
+```go
+// 只读取指定的工作表
+config := docreader.NewReadConfig().
+    WithSheetNames("Sheet1", "Summary")
+
+result, err := docreader.ReadDocumentWithConfig("spreadsheet.xlsx", config)
+```
+
+#### 处理结构化结果
+
+```go
+result, err := docreader.ReadDocumentWithConfig("document.pdf", config)
+if err != nil {
+    log.Fatal(err)
+}
+
+// 访问结构化数据
+fmt.Printf("总页数: %d\n", result.TotalPages)
+fmt.Printf("总行数: %d\n", result.TotalLines)
+
+// 遍历每一页
+for _, page := range result.Pages {
+    fmt.Printf("页码: %d, 行数: %d\n", page.PageNumber, page.TotalLines)
+    for i, line := range page.Lines {
+        fmt.Printf("  行 %d: %s\n", i, line)
+    }
+}
+
+// 获取完整内容
+fmt.Println(result.Content)
+```
+
+### 文本清理
+
+DocReader 提供了智能的文本清理功能，可以优化提取的文本内容，特别适合用于大模型处理。
+
+#### 使用预设清理配置
+
+```go
+// 使用默认清理（推荐）
+doc, err := docreader.ReadDocumentWithClean("document.pdf")
+// 效果：移除行首尾空格、压缩多余空格、移除控制字符、最多保留1个连续空行
+
+// 最小清理（保留格式）
+doc, err := docreader.ReadDocument("document.txt")
+doc.CleanContentMinimal()
+// 效果：仅移除行首尾空格、压缩多余空格、移除控制字符，保留所有空行
+
+// 激进清理（最大压缩）
+doc, err := docreader.ReadDocument("document.docx")
+doc.CleanContentAggressive()
+// 效果：移除所有空行，压缩空格，移除控制字符
+```
+
+#### 自定义清理配置
+
+```go
+// 创建自定义清理器
+cleaner := &docreader.TextCleaner{
+    TrimSpaces:         true,  // 移除行首行尾空格
+    RemoveExtraSpaces:  true,  // 压缩连续空格为一个
+    RemoveControlChars: true,  // 移除控制字符
+    MaxBlankLines:      2,     // 最多保留 2 个连续空行（-1=不限制，0=移除所有）
+}
+
+// 在读取时应用清理
+doc, err := docreader.ReadDocumentWithCleanConfig("document.pdf", cleaner)
+
+// 或者对已读取的文档应用清理
+doc, err := docreader.ReadDocument("document.txt")
+doc.CleanContentWith(cleaner)
+```
+
+#### TextCleaner 配置说明
+
+```go
+type TextCleaner struct {
+    // TrimSpaces: 是否移除行首行尾空格
+    TrimSpaces bool
+
+    // RemoveExtraSpaces: 是否将连续空格压缩为一个
+    RemoveExtraSpaces bool
+
+    // RemoveControlChars: 是否移除特殊控制字符（保留换行符和制表符）
+    RemoveControlChars bool
+
+    // MaxBlankLines: 最大连续空行数
+    //   -1: 不限制，保留所有空行
+    //    0: 移除所有空行
+    //    1: 最多保留 1 个连续空行（压缩多余空行）
+    //    N: 最多保留 N 个连续空行
+    MaxBlankLines int
+}
+```
+
 ## API 文档
 
 ### 核心接口
@@ -222,12 +365,92 @@ fmt.Println(doc.Content)
 
 自动识别文件格式并读取内容，返回包含内容和元数据的 Document 对象。
 
+#### `ReadDocumentWithClean(filePath string) (*Document, error)`
+
+读取文档并自动应用默认文本清理。
+
+#### `ReadDocumentWithCleanConfig(filePath string, cleaner *TextCleaner) (*Document, error)`
+
+读取文档并应用自定义文本清理配置。
+
+#### `ReadDocumentWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error)`
+
+根据配置精确读取文档，返回结构化的结果。
+
+#### `NewReadConfig() *ReadConfig`
+
+创建一个新的读取配置对象，支持链式调用。
+
 #### `DocumentReader` 接口
 
 所有读取器都实现此接口：
 
 - `ReadText(filePath string) (string, error)` - 读取文本内容
 - `GetMetadata(filePath string) (map[string]string, error)` - 获取元数据
+
+#### `ConfigurableReader` 接口
+
+支持高级配置的读取器接口（所有读取器都实现）：
+
+- `ReadWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error)` - 根据配置读取文档
+
+### 配置结构
+
+#### ReadConfig 配置方法
+
+```go
+// 页面选择
+config.WithPages(pages ...int)              // 设置要读取的离散页码
+config.WithPageRange(start, end int)        // 添加页码范围
+
+// 全局行选择（应用到所有页）
+config.WithLines(lines ...int)              // 设置要读取的离散行号
+config.WithLineRange(start, end int)        // 添加行号范围
+
+// 页面级行配置（覆盖全局配置）
+config.AddPageLines(pageIndex int, lines ...int)                          // 为指定页添加离散行
+config.AddPageLineRange(pageIndex, start, end int)                       // 为指定页添加行范围
+config.AddPageConfig(pageIndex int, lineIndexes []int, lineRanges [][2]int) // 为指定页添加完整配置
+
+// XLSX 特有
+config.WithSheetNames(names ...string)      // 设置要读取的工作表名称
+```
+
+#### 核心数据结构
+
+```go
+// Selector 统一的选择器，用于选择页码或行号
+type Selector struct {
+    Indexes []int       // 离散索引：[0, 2, 5]
+    Ranges  [][2]int    // 连续范围：[[0,2], [5,10]]
+}
+
+// ReadConfig 读取配置
+type ReadConfig struct {
+    PageSelector Selector      // 页面选择器
+    LineSelector Selector      // 全局行选择器
+    PageConfigs  []PageConfig  // 页面级配置（优先级高于全局）
+    SheetNames   []string      // XLSX 工作表名称
+}
+
+// DocumentResult 结构化的文档读取结果
+type DocumentResult struct {
+    FilePath   string
+    Pages      []PageContent      // 结构化页面内容
+    TotalPages int
+    TotalLines int
+    Metadata   map[string]string
+    Content    string             // 完整文本内容
+}
+
+// PageContent 单页内容
+type PageContent struct {
+    PageNumber int
+    PageName   string   // 工作表名称（XLSX）
+    Lines      []string
+    TotalLines int
+}
+```
 
 ### 专用读取器
 

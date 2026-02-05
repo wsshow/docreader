@@ -3,6 +3,7 @@ package docreader
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // TxtReader 用于读取 .txt 文件
@@ -33,4 +34,41 @@ func (r *TxtReader) GetMetadata(filePath string) (map[string]string, error) {
 	metadata["modified"] = fileInfo.ModTime().String()
 
 	return metadata, nil
+}
+
+// ReadWithConfig 根据配置读取 TXT 文件，返回结构化结果
+func (r *TxtReader) ReadWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, WrapError("TxtReader.ReadWithConfig", filePath, ErrFileRead)
+	}
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
+
+	result := &DocumentResult{
+		FilePath:   filePath,
+		TotalPages: 1,
+		Pages:      make([]PageContent, 0),
+		Metadata:   make(map[string]string),
+	}
+
+	// 获取元数据
+	metadata, _ := r.GetMetadata(filePath)
+	result.Metadata = metadata
+
+	// 根据配置筛选行
+	filteredLines := filterLinesForSinglePage(lines, config)
+
+	pageContent := PageContent{
+		PageNumber: 0,
+		Lines:      filteredLines,
+		TotalLines: len(filteredLines),
+	}
+
+	result.Pages = append(result.Pages, pageContent)
+	result.TotalLines = len(filteredLines)
+	result.Content = strings.Join(filteredLines, "\n")
+
+	return result, nil
 }

@@ -131,3 +131,129 @@ func (r *XlsxReader) GetAllSheetsData(filePath string) (map[string][][]string, e
 
 	return result, nil
 }
+
+// ReadWithConfig 根据配置读取 XLSX 文件，返回结构化结果
+func (r *XlsxReader) ReadWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error) {
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return nil, WrapError("XlsxReader.ReadWithConfig", filePath, ErrFileOpen)
+	}
+	defer f.Close()
+
+	sheets := f.GetSheetList()
+	totalSheets := len(sheets)
+
+	result := &DocumentResult{
+		FilePath:   filePath,
+		TotalPages: totalSheets,
+		Pages:      make([]PageContent, 0),
+		Metadata:   make(map[string]string),
+	}
+
+	// 获取元数据
+	metadata, _ := r.GetMetadata(filePath)
+	result.Metadata = metadata
+
+	// 确定要读取的工作表
+	var sheetsToRead []int
+	sheetNamesSet := make(map[string]bool)
+
+	// 如果指定了工作表名称
+	if config != nil && config.SheetNames != nil {
+		for _, name := range config.SheetNames {
+			sheetNamesSet[name] = true
+		}
+	}
+
+	// 如果有详细的页面配置
+	if config != nil && len(config.PageConfigs) > 0 {
+		// 从PageConfigs中提取工作表索引
+		for _, pageConfig := range config.PageConfigs {
+			if pageConfig.PageIndex >= 0 && pageConfig.PageIndex < totalSheets {
+				sheetsToRead = append(sheetsToRead, pageConfig.PageIndex)
+			}
+		}
+	} else if config != nil && (len(config.PageSelector.Indexes) > 0 || len(config.PageSelector.Ranges) > 0) {
+		sheetsToRead = determinePagesToRead(config, totalSheets)
+	} else if len(sheetNamesSet) > 0 {
+		// 根据工作表名称确定索引
+		for i, sheetName := range sheets {
+			if sheetNamesSet[sheetName] {
+				sheetsToRead = append(sheetsToRead, i)
+			}
+		}
+	} else {
+		// 读取所有工作表
+		sheetsToRead = make([]int, 0, totalSheets)
+		for i := 0; i < totalSheets; i++ {
+			sheetsToRead = append(sheetsToRead, i)
+		}
+	}
+
+	// 构建页面行配置映射
+	pageLineMap := buildPageLineMap(config, totalSheets)
+
+	var contentBuilder strings.Builder
+	totalLines := 0
+
+	for _, sheetIndex := range sheetsToRead {
+		if sheetIndex < 0 || sheetIndex >= totalSheets {
+			continue
+		}
+
+		sheetName := sheets[sheetIndex]
+		rows, err := f.GetRows(sheetName)
+		if err != nil {
+			continue
+		}
+
+		// 将每行转换为字符串
+		lines := make([]string, 0, len(rows))
+		for rowIndex, row := range rows {
+			if len(row) == 0 {
+				continue
+			}
+
+			var lineBuilder strings.Builder
+			lineBuilder.WriteString(fmt.Sprintf("Row %d: ", rowIndex))
+			for colIndex, cell := range row {
+				if colIndex > 0 {
+					lineBuilder.WriteString(" | ")
+				}
+				lineBuilder.WriteString(cell)
+			}
+			lines = append(lines, lineBuilder.String())
+		}
+
+		// 根据配置筛选行
+		var filteredLines []string
+		if lineConfig, ok := pageLineMap[sheetIndex]; ok {
+			filteredLines = filterLinesForPage(lines, lineConfig)
+		} else {
+			filteredLines = lines
+		}
+
+		pageContent := PageContent{
+			PageNumber: sheetIndex,
+			PageName:   sheetName,
+			Lines:      filteredLines,
+			TotalLines: len(filteredLines),
+		}
+
+		result.Pages = append(result.Pages, pageContent)
+		totalLines += len(filteredLines)
+
+		// 构建完整内容
+		contentBuilder.WriteString(fmt.Sprintf("\n=== 工作表: %s ===\n\n", sheetName))
+		for _, line := range filteredLines {
+			contentBuilder.WriteString(line)
+			contentBuilder.WriteString("\n")
+		}
+		contentBuilder.WriteString("\n")
+	}
+
+	result.TotalLines = totalLines
+	result.Content = contentBuilder.String()
+
+	return result, nil
+}

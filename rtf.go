@@ -63,3 +63,41 @@ func removeRtfControls(content string) string {
 
 	return strings.TrimSpace(content)
 }
+
+// ReadWithConfig 根据配置读取 RTF 文件，返回结构化结果
+func (r *RtfReader) ReadWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, WrapError("RtfReader.ReadWithConfig", filePath, ErrFileRead)
+	}
+
+	content := string(data)
+	content = removeRtfControls(content)
+	lines := strings.Split(content, "\n")
+
+	result := &DocumentResult{
+		FilePath:   filePath,
+		TotalPages: 1,
+		Pages:      make([]PageContent, 0),
+		Metadata:   make(map[string]string),
+	}
+
+	// 获取元数据
+	metadata, _ := r.GetMetadata(filePath)
+	result.Metadata = metadata
+
+	// 根据配置筛选行
+	filteredLines := filterLinesForSinglePage(lines, config)
+
+	pageContent := PageContent{
+		PageNumber: 0,
+		Lines:      filteredLines,
+		TotalLines: len(filteredLines),
+	}
+
+	result.Pages = append(result.Pages, pageContent)
+	result.TotalLines = len(filteredLines)
+	result.Content = strings.Join(filteredLines, "\n")
+
+	return result, nil
+}

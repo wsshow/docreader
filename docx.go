@@ -148,3 +148,103 @@ func (r *DocxReader) GetMetadata(filePath string) (map[string]string, error) {
 
 	return metadata, nil
 }
+
+// ReadWithConfig 根据配置读取 DOCX 文件，返回结构化结果
+// DOCX 文件以段落为单位，将每个段落视为一行
+func (r *DocxReader) ReadWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error) {
+	zipReader, err := zip.OpenReader(filePath)
+	if err != nil {
+		return nil, WrapError("DocxReader.ReadWithConfig", filePath, ErrFileOpen)
+	}
+	defer zipReader.Close()
+
+	// 查找并读取 document.xml
+	var documentXML []byte
+	for _, file := range zipReader.File {
+		if file.Name == "word/document.xml" {
+			rc, err := file.Open()
+			if err != nil {
+				return nil, WrapError("DocxReader.ReadWithConfig", filePath, ErrFileRead)
+			}
+			documentXML, err = io.ReadAll(rc)
+			rc.Close()
+			if err != nil {
+				return nil, WrapError("DocxReader.ReadWithConfig", filePath, ErrFileRead)
+			}
+			break
+		}
+	}
+
+	if documentXML == nil {
+		return nil, WrapError("DocxReader.ReadWithConfig", filePath, ErrInvalidFormat)
+	}
+
+	// 解析 XML
+	var doc WordDocument
+	if err := xml.Unmarshal(documentXML, &doc); err != nil {
+		return nil, WrapError("DocxReader.ReadWithConfig", filePath, ErrFileParse)
+	}
+
+	result := &DocumentResult{
+		FilePath:   filePath,
+		TotalPages: 1, // DOCX 作为单页处理
+		Pages:      make([]PageContent, 0),
+		Metadata:   make(map[string]string),
+	}
+
+	// 获取元数据
+	metadata, _ := r.GetMetadata(filePath)
+	result.Metadata = metadata
+
+	// 提取所有段落和表格行
+	lines := make([]string, 0)
+
+	// 提取段落文本
+	for _, para := range doc.Body.Paragraphs {
+		var lineBuilder strings.Builder
+		for _, run := range para.Runs {
+			lineBuilder.WriteString(run.Text)
+		}
+		line := lineBuilder.String()
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+
+	// 提取表格文本
+	for _, table := range doc.Body.Tables {
+		for _, row := range table.Rows {
+			var rowBuilder strings.Builder
+			for cellIndex, cell := range row.Cells {
+				if cellIndex > 0 {
+					rowBuilder.WriteString("\t")
+				}
+				for _, para := range cell.Paragraphs {
+					for _, run := range para.Runs {
+						rowBuilder.WriteString(run.Text)
+						rowBuilder.WriteString(" ")
+					}
+				}
+			}
+			line := strings.TrimSpace(rowBuilder.String())
+			if line != "" {
+				lines = append(lines, line)
+			}
+		}
+	}
+
+	// 根据配置筛选行
+	filteredLines := filterLinesForSinglePage(lines, config)
+
+	pageContent := PageContent{
+		PageNumber: 0,
+		Lines:      filteredLines,
+		TotalLines: len(filteredLines),
+	}
+
+	result.Pages = append(result.Pages, pageContent)
+	result.TotalLines = len(filteredLines)
+	result.Content = strings.Join(filteredLines, "\n")
+
+	return result, nil
+}

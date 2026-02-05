@@ -92,11 +92,10 @@ func TestCleanTextAggressive(t *testing.T) {
 
 func TestTextCleanerCustomConfig(t *testing.T) {
 	cleaner := &TextCleaner{
-		RemoveExtraBlankLines:    true,
-		TrimSpaces:               true,
-		RemoveExtraSpaces:        false, // 不移除多余空格
-		RemoveControlChars:       true,
-		MaxConsecutiveBlankLines: 2, // 允许最多2个连续空行
+		TrimSpaces:         true,
+		RemoveExtraSpaces:  false, // 不移除多余空格
+		RemoveControlChars: true,
+		MaxBlankLines:      2, // 允许最多2个连续空行
 	}
 
 	input := "Hello    world\n\n\n\n\nTest"

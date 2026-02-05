@@ -91,3 +91,51 @@ func (r *CsvReader) GetRecords(filePath string) ([][]string, error) {
 
 	return records, nil
 }
+
+// ReadWithConfig 根据配置读取 CSV 文件，返回结构化结果
+func (r *CsvReader) ReadWithConfig(filePath string, config *ReadConfig) (*DocumentResult, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, WrapError("CsvReader.ReadWithConfig", filePath, ErrFileOpen)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, WrapError("CsvReader.ReadWithConfig", filePath, ErrFileRead)
+	}
+
+	result := &DocumentResult{
+		FilePath:   filePath,
+		TotalPages: 1,
+		Pages:      make([]PageContent, 0),
+		Metadata:   make(map[string]string),
+	}
+
+	// 获取元数据
+	metadata, _ := r.GetMetadata(filePath)
+	result.Metadata = metadata
+
+	// 将每行记录转换为字符串
+	lines := make([]string, 0, len(records))
+	for rowIndex, record := range records {
+		line := fmt.Sprintf("Row %d: %s", rowIndex+1, strings.Join(record, " | "))
+		lines = append(lines, line)
+	}
+
+	// 根据配置筛选行
+	filteredLines := filterLinesForSinglePage(lines, config)
+
+	pageContent := PageContent{
+		PageNumber: 0,
+		Lines:      filteredLines,
+		TotalLines: len(filteredLines),
+	}
+
+	result.Pages = append(result.Pages, pageContent)
+	result.TotalLines = len(filteredLines)
+	result.Content = strings.Join(filteredLines, "\n")
+
+	return result, nil
+}

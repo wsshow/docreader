@@ -11,36 +11,15 @@ import (
 
 // TestReadDocument 测试统一文档读取接口
 func TestReadDocument(t *testing.T) {
-	tests := []struct {
-		name        string
-		filepath    string
-		shouldError bool
-		errorMsg    string
-	}{
-		{
-			name:        "不存在的文件",
-			filepath:    "nonexistent.docx",
-			shouldError: true,
-			errorMsg:    "file not found",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := ReadDocument(tt.filepath)
-			if tt.shouldError && err == nil {
-				t.Error("期望出现错误，但没有错误")
-			}
-			if !tt.shouldError && err != nil {
-				t.Errorf("不期望出现错误，但得到: %v", err)
-			}
-			if tt.shouldError && err != nil && tt.errorMsg != "" {
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("期望错误信息包含 '%s'，但得到: %v", tt.errorMsg, err)
-				}
-			}
-		})
-	}
+	t.Run("不存在的文件", func(t *testing.T) {
+		_, err := ReadDocument("nonexistent.docx")
+		if err == nil {
+			t.Fatal("期望出现错误")
+		}
+		if !strings.Contains(err.Error(), "file not found") {
+			t.Errorf("期望错误信息包含 'file not found'，实际: %v", err)
+		}
+	})
 }
 
 // TestErrorHandling 统一测试所有读取器的错误处理
@@ -58,34 +37,32 @@ func TestErrorHandling(t *testing.T) {
 
 	for name, reader := range readers {
 		t.Run(name, func(t *testing.T) {
-			_, err := reader.ReadText("nonexistent.file")
-			if err == nil {
-				t.Errorf("%s: 期望读取不存在文件时出现错误", name)
+			if _, err := reader.ReadText("nonexistent.file"); err == nil {
+				t.Error("期望读取不存在文件时出现错误")
 			}
 
-			_, err = reader.GetMetadata("nonexistent.file")
-			if err == nil {
-				t.Errorf("%s: 期望获取不存在文件元数据时出现错误", name)
+			if _, err := reader.GetMetadata("nonexistent.file"); err == nil {
+				t.Error("期望获取不存在文件元数据时出现错误")
 			}
 		})
 	}
 }
 
-// TestDocxReaderWithRealFile 测试 DOCX 读取器
-func TestDocxReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.docx")
+// testFileReader 通用的文件读取测试辅助函数
+func testFileReader(t *testing.T, filename string, reader DocumentReader, extraTests func(*testing.T, string, string, map[string]string)) {
+	t.Helper()
+
+	testFile := filepath.Join("testdata", filename)
 	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.docx")
+		t.Skipf("测试文件不存在: %s", filename)
 	}
 
 	fileInfo, _ := os.Stat(testFile)
-	reader := &DocxReader{}
 
 	// 测试读取文本
 	start := time.Now()
 	content, err := reader.ReadText(testFile)
 	duration := time.Since(start)
-
 	if err != nil {
 		t.Fatalf("读取失败: %v", err)
 	}
@@ -96,278 +73,105 @@ func TestDocxReaderWithRealFile(t *testing.T) {
 		t.Errorf("获取元数据失败: %v", err)
 	}
 
-	// 输出统计信息
-	t.Logf("=== DOCX 文件统计 ===")
-	t.Logf("文件大小: %d 字节 (%.2f KB)", fileInfo.Size(), float64(fileInfo.Size())/1024)
+	// 输出基本统计信息
+	t.Logf("=== %s 文件统计 ===", strings.ToUpper(filepath.Ext(filename)[1:]))
+	t.Logf("文件大小: %s", formatFileSize(fileInfo.Size()))
 	t.Logf("内容长度: %d 字符", len(content))
 	t.Logf("处理时间: %v", duration)
+
+	// 执行额外的测试
+	if extraTests != nil {
+		extraTests(t, testFile, content, metadata)
+	}
+
 	t.Logf("元数据: %+v", metadata)
+}
+
+// formatFileSize 格式化文件大小
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.2f %cB", float64(size)/float64(div), "KMGTPE"[exp])
+}
+
+// TestDocxReaderWithRealFile 测试 DOCX 读取器
+func TestDocxReaderWithRealFile(t *testing.T) {
+	testFileReader(t, "test.docx", &DocxReader{}, nil)
 }
 
 // TestPdfReaderWithRealFile 测试 PDF 读取器
 func TestPdfReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.pdf")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.pdf")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &PdfReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 输出统计信息
-	t.Logf("=== PDF 文件统计 ===")
-	t.Logf("文件大小: %d 字节 (%.2f MB)", fileInfo.Size(), float64(fileInfo.Size())/1024/1024)
-	t.Logf("内容长度: %d 字符", len(content))
-	t.Logf("处理时间: %v", duration)
-	if pages, ok := metadata["pages"]; ok {
-		t.Logf("页数: %s", pages)
-	}
-	t.Logf("元数据: %+v", metadata)
+	testFileReader(t, "test.pdf", &PdfReader{}, func(t *testing.T, path, content string, metadata map[string]string) {
+		if pages, ok := metadata["pages"]; ok {
+			t.Logf("页数: %s", pages)
+		}
+	})
 }
 
 // TestXlsxReaderWithRealFile 测试 XLSX 读取器
 func TestXlsxReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.xlsx")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.xlsx")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &XlsxReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 获取工作表数据
-	allData, err := reader.GetAllSheetsData(testFile)
-	totalRows := 0
-	if err == nil {
-		for _, rows := range allData {
-			totalRows += len(rows)
+	testFileReader(t, "test.xlsx", &XlsxReader{}, func(t *testing.T, path, content string, metadata map[string]string) {
+		reader := &XlsxReader{}
+		if allData, err := reader.GetAllSheetsData(path); err == nil {
+			totalRows := 0
+			for _, rows := range allData {
+				totalRows += len(rows)
+			}
+			t.Logf("总行数: %d", totalRows)
 		}
-	}
-
-	// 输出统计信息
-	t.Logf("=== XLSX 文件统计 ===")
-	t.Logf("文件大小: %d 字节 (%.2f KB)", fileInfo.Size(), float64(fileInfo.Size())/1024)
-	t.Logf("内容长度: %d 字符", len(content))
-	t.Logf("处理时间: %v", duration)
-	if sheets, ok := metadata["sheet_count"]; ok {
-		t.Logf("工作表数量: %s", sheets)
-	}
-	t.Logf("总行数: %d", totalRows)
-	t.Logf("元数据: %+v", metadata)
+		if sheets, ok := metadata["sheet_count"]; ok {
+			t.Logf("工作表数量: %s", sheets)
+		}
+	})
 }
 
 // TestPptxReaderWithRealFile 测试 PPTX 读取器
 func TestPptxReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.pptx")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.pptx")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &PptxReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 获取幻灯片
-	slides, err := reader.GetSlides(testFile)
-	if err != nil {
-		t.Errorf("获取幻灯片失败: %v", err)
-	}
-
-	// 输出统计信息
-	t.Logf("=== PPTX 文件统计 ===")
-	t.Logf("文件大小: %d 字节 (%.2f KB)", fileInfo.Size(), float64(fileInfo.Size())/1024)
-	t.Logf("内容长度: %d 字符", len(content))
-	t.Logf("处理时间: %v", duration)
-	t.Logf("幻灯片数量: %d", len(slides))
-	t.Logf("元数据: %+v", metadata)
+	testFileReader(t, "test.pptx", &PptxReader{}, func(t *testing.T, path, content string, metadata map[string]string) {
+		reader := &PptxReader{}
+		if slides, err := reader.GetSlides(path); err == nil {
+			t.Logf("幻灯片数量: %d", len(slides))
+		}
+	})
 }
 
 // TestTxtReaderWithRealFile 测试 TXT 读取器
 func TestTxtReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.txt")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.txt")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &TxtReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 输出统计信息
-	t.Logf("=== TXT 文件统计 ===")
-	t.Logf("文件大小: %d 字节", fileInfo.Size())
-	t.Logf("内容长度: %d 字符", len(content))
-	t.Logf("行数: %d", strings.Count(content, "\n")+1)
-	t.Logf("处理时间: %v", duration)
-	t.Logf("元数据: %+v", metadata)
+	testFileReader(t, "test.txt", &TxtReader{}, func(t *testing.T, path, content string, metadata map[string]string) {
+		t.Logf("行数: %d", strings.Count(content, "\n")+1)
+	})
 }
 
 // TestCsvReaderWithRealFile 测试 CSV 读取器
 func TestCsvReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.csv")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.csv")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &CsvReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 获取记录
-	records, err := reader.GetRecords(testFile)
-	if err != nil {
-		t.Errorf("获取记录失败: %v", err)
-	}
-
-	// 输出统计信息
-	t.Logf("=== CSV 文件统计 ===")
-	t.Logf("文件大小: %d 字节", fileInfo.Size())
-	t.Logf("内容长度: %d 字符", len(content))
-	t.Logf("处理时间: %v", duration)
-	t.Logf("记录数量: %d 行", len(records))
-	if len(records) > 0 {
-		t.Logf("列数: %d", len(records[0]))
-	}
-	t.Logf("元数据: %+v", metadata)
+	testFileReader(t, "test.csv", &CsvReader{}, func(t *testing.T, path, content string, metadata map[string]string) {
+		reader := &CsvReader{}
+		if records, err := reader.GetRecords(path); err == nil {
+			t.Logf("记录数量: %d 行", len(records))
+			if len(records) > 0 {
+				t.Logf("列数: %d", len(records[0]))
+			}
+		}
+	})
 }
 
 // TestMdReaderWithRealFile 测试 Markdown 读取器
 func TestMdReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.md")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.md")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &MdReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 输出统计信息
-	t.Logf("=== Markdown 文件统计 ===")
-	t.Logf("文件大小: %d 字节", fileInfo.Size())
-	t.Logf("内容长度: %d 字符", len(content))
-	t.Logf("行数: %d", strings.Count(content, "\n")+1)
-	t.Logf("处理时间: %v", duration)
-	t.Logf("元数据: %+v", metadata)
+	testFileReader(t, "test.md", &MdReader{}, func(t *testing.T, path, content string, metadata map[string]string) {
+		t.Logf("行数: %d", strings.Count(content, "\n")+1)
+	})
 }
 
 // TestRtfReaderWithRealFile 测试 RTF 读取器
 func TestRtfReaderWithRealFile(t *testing.T) {
-	testFile := filepath.Join("testdata", "test.rtf")
-	if _, err := os.Stat(testFile); err != nil {
-		t.Skip("测试文件不存在: test.rtf")
-	}
-
-	fileInfo, _ := os.Stat(testFile)
-	reader := &RtfReader{}
-
-	// 测试读取文本
-	start := time.Now()
-	content, err := reader.ReadText(testFile)
-	duration := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("读取失败: %v", err)
-	}
-
-	// 获取元数据
-	metadata, err := reader.GetMetadata(testFile)
-	if err != nil {
-		t.Errorf("获取元数据失败: %v", err)
-	}
-
-	// 输出统计信息
-	t.Logf("=== RTF 文件统计 ===")
-	t.Logf("文件大小: %d 字节", fileInfo.Size())
-	t.Logf("提取内容长度: %d 字符", len(content))
-	t.Logf("处理时间: %v", duration)
-	t.Logf("元数据: %+v", metadata)
+	testFileReader(t, "test.rtf", &RtfReader{}, nil)
 }
 
 // TestFormatDetection 测试格式检测
@@ -412,9 +216,10 @@ func TestErrorTypes(t *testing.T) {
 	})
 
 	t.Run("不支持的格式错误", func(t *testing.T) {
-		// 创建一个临时文件
 		tmpFile := filepath.Join("testdata", "test.unknown")
-		os.WriteFile(tmpFile, []byte("test"), 0644)
+		if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("创建临时文件失败: %v", err)
+		}
 		defer os.Remove(tmpFile)
 
 		_, err := ReadDocument(tmpFile)
@@ -431,12 +236,10 @@ func TestErrorTypes(t *testing.T) {
 func TestGetSupportedFormats(t *testing.T) {
 	formats := GetSupportedFormats()
 
-	// 检查返回的格式列表不为空
 	if len(formats) == 0 {
-		t.Error("支持的格式列表不应为空")
+		t.Fatal("支持的格式列表不应为空")
 	}
 
-	// 检查是否包含常见格式
 	expectedFormats := []string{".docx", ".pdf", ".xlsx", ".pptx", ".txt", ".csv", ".md", ".rtf"}
 	for _, expected := range expectedFormats {
 		found := false
@@ -453,12 +256,12 @@ func TestGetSupportedFormats(t *testing.T) {
 
 	t.Logf("支持的格式: %v", formats)
 
-	// 验证返回的是副本（修改不影响原始数据）
+	// 验证返回的是副本
 	originalFirst := formats[0]
 	formats[0] = ".test"
 	formats2 := GetSupportedFormats()
 	if formats2[0] != originalFirst {
-		t.Error("GetSupportedFormats 应该返回副本，而不是原始切片")
+		t.Error("GetSupportedFormats 应该返回副本")
 	}
 }
 
@@ -481,9 +284,9 @@ func TestIsFormatSupported(t *testing.T) {
 		{".xls", false},
 		{".ppt", false},
 		{".unknown", false},
-		{"docx", true}, // 不带点号
-		{"DOCX", true}, // 大写
-		{"PDF", true},  // 大写
+		{"docx", true},
+		{"DOCX", true},
+		{"PDF", true},
 	}
 
 	for _, tt := range tests {
@@ -527,14 +330,9 @@ func TestAllFormatsPerformance(t *testing.T) {
 			continue
 		}
 
-		sizeStr := fmt.Sprintf("%.2f KB", float64(fileInfo.Size())/1024)
-		if fileInfo.Size() > 1024*1024 {
-			sizeStr = fmt.Sprintf("%.2f MB", float64(fileInfo.Size())/1024/1024)
-		}
-
 		t.Logf("%-8s %-12s %-15d %-15v",
 			format,
-			sizeStr,
+			formatFileSize(fileInfo.Size()),
 			len(doc.Content),
 			duration)
 	}
@@ -542,22 +340,22 @@ func TestAllFormatsPerformance(t *testing.T) {
 
 // BenchmarkReadDocument 性能基准测试
 func BenchmarkReadDocument(b *testing.B) {
-	testFiles := []string{
-		"testdata/test.docx",
-		"testdata/test.pdf",
-		"testdata/test.xlsx",
-		"testdata/test.pptx",
-		"testdata/test.txt",
-		"testdata/test.csv",
-		"testdata/test.md",
+	testFiles := map[string]string{
+		"DOCX": "testdata/test.docx",
+		"PDF":  "testdata/test.pdf",
+		"XLSX": "testdata/test.xlsx",
+		"PPTX": "testdata/test.pptx",
+		"TXT":  "testdata/test.txt",
+		"CSV":  "testdata/test.csv",
+		"MD":   "testdata/test.md",
 	}
 
-	for _, testFile := range testFiles {
+	for name, testFile := range testFiles {
 		if _, err := os.Stat(testFile); err != nil {
 			continue
 		}
 
-		b.Run(filepath.Base(testFile), func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_, _ = ReadDocument(testFile)
