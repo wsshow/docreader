@@ -26,6 +26,26 @@ type Document struct {
 	Metadata map[string]string
 }
 
+// CleanContent 使用默认配置清理文档内容
+func (d *Document) CleanContent() {
+	d.Content = CleanText(d.Content)
+}
+
+// CleanContentWith 使用自定义清理器清理文档内容
+func (d *Document) CleanContentWith(cleaner *TextCleaner) {
+	d.Content = cleaner.Clean(d.Content)
+}
+
+// CleanContentMinimal 使用最小配置清理文档内容
+func (d *Document) CleanContentMinimal() {
+	d.Content = CleanTextMinimal(d.Content)
+}
+
+// CleanContentAggressive 使用激进配置清理文档内容
+func (d *Document) CleanContentAggressive() {
+	d.Content = CleanTextAggressive(d.Content)
+}
+
 // GetSupportedFormats 返回当前支持的文档格式列表
 func GetSupportedFormats() []string {
 	formats := make([]string, len(supportedFormats))
@@ -89,4 +109,24 @@ func ReadDocument(filePath string) (*Document, error) {
 		Content:  content,
 		Metadata: metadata,
 	}, nil
+}
+
+// ReadDocumentWithClean 读取文档并自动应用默认清理
+func ReadDocumentWithClean(filePath string) (*Document, error) {
+	doc, err := ReadDocument(filePath)
+	if err != nil {
+		return nil, err
+	}
+	doc.CleanContent()
+	return doc, nil
+}
+
+// ReadDocumentWithCleanConfig 读取文档并应用自定义清理配置
+func ReadDocumentWithCleanConfig(filePath string, cleaner *TextCleaner) (*Document, error) {
+	doc, err := ReadDocument(filePath)
+	if err != nil {
+		return nil, err
+	}
+	doc.CleanContentWith(cleaner)
+	return doc, nil
 }

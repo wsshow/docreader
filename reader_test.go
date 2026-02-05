@@ -71,7 +71,7 @@ func TestErrorHandling(t *testing.T) {
 	}
 }
 
-// TestDocxReaderWithRealFile 测试 DOCX 读取器（真实文件）
+// TestDocxReaderWithRealFile 测试 DOCX 读取器
 func TestDocxReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.docx")
 	if _, err := os.Stat(testFile); err != nil {
@@ -104,7 +104,7 @@ func TestDocxReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestPdfReaderWithRealFile 测试 PDF 读取器（真实文件）
+// TestPdfReaderWithRealFile 测试 PDF 读取器
 func TestPdfReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.pdf")
 	if _, err := os.Stat(testFile); err != nil {
@@ -140,7 +140,7 @@ func TestPdfReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestXlsxReaderWithRealFile 测试 XLSX 读取器（真实文件）
+// TestXlsxReaderWithRealFile 测试 XLSX 读取器
 func TestXlsxReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.xlsx")
 	if _, err := os.Stat(testFile); err != nil {
@@ -186,7 +186,7 @@ func TestXlsxReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestPptxReaderWithRealFile 测试 PPTX 读取器（真实文件）
+// TestPptxReaderWithRealFile 测试 PPTX 读取器
 func TestPptxReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.pptx")
 	if _, err := os.Stat(testFile); err != nil {
@@ -226,7 +226,7 @@ func TestPptxReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestTxtReaderWithRealFile 测试 TXT 读取器（真实文件）
+// TestTxtReaderWithRealFile 测试 TXT 读取器
 func TestTxtReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.txt")
 	if _, err := os.Stat(testFile); err != nil {
@@ -260,7 +260,7 @@ func TestTxtReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestCsvReaderWithRealFile 测试 CSV 读取器（真实文件）
+// TestCsvReaderWithRealFile 测试 CSV 读取器
 func TestCsvReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.csv")
 	if _, err := os.Stat(testFile); err != nil {
@@ -303,7 +303,7 @@ func TestCsvReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestMdReaderWithRealFile 测试 Markdown 读取器（真实文件）
+// TestMdReaderWithRealFile 测试 Markdown 读取器
 func TestMdReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.md")
 	if _, err := os.Stat(testFile); err != nil {
@@ -337,7 +337,7 @@ func TestMdReaderWithRealFile(t *testing.T) {
 	t.Logf("元数据: %+v", metadata)
 }
 
-// TestRtfReaderWithRealFile 测试 RTF 读取器（真实文件）
+// TestRtfReaderWithRealFile 测试 RTF 读取器
 func TestRtfReaderWithRealFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "test.rtf")
 	if _, err := os.Stat(testFile); err != nil {
